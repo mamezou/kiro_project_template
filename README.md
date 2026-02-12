@@ -12,8 +12,14 @@ Steering / Skills / Hooks を組み合わせた `.kiro/` ディレクトリを�
 # クローンしてコピー
 git clone https://github.com/mamezou/kiro_project_template.git /tmp/kiro-template
 cp -r /tmp/kiro-template/.kiro /path/to/your-project/.kiro
+cp -r /tmp/kiro-template/docs /path/to/your-project/docs
+cp /tmp/kiro-template/CLAUDE.md.example /path/to/your-project/CLAUDE.md
 
-# product.md と structure.md をプロジェクトに合わせて書き換え
+# PJに合わせて書き換え
+# 1. .kiro/steering/product.md — プロダクト概要
+# 2. .kiro/steering/structure.md — ディレクトリ構成
+# 3. .kiro/steering/tech.md — 技術スタック
+# 4. CLAUDE.md — PJ固有のルール
 ```
 
 ### Kiro IDE からインポート（Skills 単体）
@@ -30,13 +36,21 @@ https://github.com/mamezou/kiro_project_template/tree/main/.kiro/skills/e2e-test
 
 ```
 .kiro/
+├── agents/                      # サブエージェント（専門AI）
+│   ├── security-auditor.md         セキュリティ監査（read-only）
+│   ├── spec-checker.md             仕様準拠チェック（read-only）
+│   ├── doc-updater.md              ADR・設計書更新（docs/のみ書込可）
+│   └── unit-tester.md              テスト作成・実行
+│
 ├── steering/                    # エージェントへの常時コンテキスト
 │   ├── product.md                  プロダクト概要          ← PJごとに書き換え
-│   ├── tech.md                     技術スタック
+│   ├── tech.md                     技術スタック            ← PJごとに書き換え
 │   ├── structure.md                ディレクトリ構成        ← PJごとに書き換え
 │   ├── coding-standards.md         TypeScript コーディング規約
+│   ├── pre-commit-checks.md        コミット前チェック（lint/format）
 │   ├── testing.md                  テスト規約 (*.test.* 編集時のみ読込)
 │   ├── git-conventions.md          Git / Conventional Commits 規約
+│   ├── kiro-file-access.md         .kiro/ ファイル操作ルール
 │   ├── branch-strategy.md          ブランチ戦略・PR運用    ← L2+
 │   ├── production-safety.md        本番環境安全ルール      ← L3
 │   └── troubleshooting.md          トラブルシューティング  ← manual
@@ -49,20 +63,29 @@ https://github.com/mamezou/kiro_project_template/tree/main/.kiro/skills/e2e-test
 │   └── guardrails-setup/SKILL.md   ガードレール選択・配置
 │
 ├── hooks/                       # イベント駆動の自動化
-│   ├── auto-test.kiro.hook         src 変更時にテスト自動実行
+│   ├── auto-test.kiro.hook         ソース変更時にテスト自動実行 ← patterns要カスタマイズ
 │   └── auto-commit.kiro.hook       タスク完了時の自動コミット (default: off)
 │
 └── settings/
     └── mcp.json                    MCP サーバー設定
+
+docs/
+├── design/.gitkeep              # 設計書（第一ソース）
+├── decisions/                   # ADR（設計判断記録）
+│   └── 000-template.md             ADRテンプレート
+└── impl/.gitkeep                # 実装計画書
+
+CLAUDE.md.example                # Claude Code 用ガードレールテンプレート
 ```
 
-## Steering / Skills / Hooks の使い分け
+## Steering / Skills / Hooks / Agents の使い分け
 
 | 機能 | 読み込みタイミング | 役割 |
 |------|-------------------|------|
 | **Steering** | 常時 or 条件マッチ時 | 「こう書け」— ルール・規約・文脈 |
 | **Skills** | description マッチ時 | 「こうやれ」— 手順書・ワークフロー |
 | **Hooks** | ファイル変更等イベント | 「勝手にやれ」— 自動化タスク |
+| **Agents** | ユーザーが明示的に呼出 | 「専門家に任せろ」— 特化型サブエージェント |
 
 ## Steering 詳細
 
@@ -72,8 +95,10 @@ https://github.com/mamezou/kiro_project_template/tree/main/.kiro/skills/e2e-test
 | `tech.md` | `always` | TypeScript / Node.js 20 / Vitest / Playwright 等 |
 | `structure.md` | `always` | ディレクトリ構成・命名規約（PJごとに書き換え） |
 | `coding-standards.md` | `always` | strict, no any, no enum, arrow functions 等 |
+| `pre-commit-checks.md` | `always` | コミット前の lint / format チェック必須 |
 | `testing.md` | `fileMatch: **/*.test.*` | Vitest / Playwright の規約。テスト編集時のみ読込 |
 | `git-conventions.md` | `always` | Conventional Commits・ブランチ戦略 |
+| `kiro-file-access.md` | — | `.kiro/` ファイルの読み書きルール |
 | `troubleshooting.md` | `manual` | トラブルシューティング（`#troubleshooting` で読込） |
 
 > **💡 Tips**: `coding-standards.md` と `git-conventions.md` は全PJ共通なので `~/.kiro/steering/` にも配置しておくと便利です。
@@ -114,6 +139,37 @@ Playwright を使った E2E テストの作成・実行ガイド。
 
 **トリガー**: 「E2E テスト書いて」「Playwright」等
 
+## Agents 詳細
+
+サブエージェントは特定の専門領域に特化した AI です。メインのチャットから呼び出して使います。
+
+| エージェント | tools | 用途 |
+|---|---|---|
+| `security-auditor` | read, shell | セキュリティ監査（OWASP, npm audit, 認証/認可チェック） |
+| `spec-checker` | read | 仕様 vs 実装の乖離検出（read-only で安全） |
+| `doc-updater` | read, write | ADR追記・設計書更新（docs/ のみ書込可） |
+| `unit-tester` | read, write, shell | テスト作成・実行（TDD / 実装後テスト） |
+
+全エージェントのモデルは `claude-sonnet-4-5-20250929` を推奨（速度とコスト重視）。
+深い設計議論はメインチャット（Opus）で行い、エージェントはパターンマッチ主体のタスクに使う。
+
+### PJ固有のエージェントを追加する場合
+
+`.kiro/agents/` に `.md` ファイルを追加するだけで使えます:
+
+```markdown
+---
+name: my-agent
+description: エージェントの説明
+tools: ["read", "write", "shell"]
+model: claude-sonnet-4-5-20250929
+resources:
+  - "file://docs/design/*.md"
+---
+
+プロンプト本文をここに書く。
+```
+
 ## カスタマイズ
 
 ### ガードレールレベル
@@ -135,6 +191,8 @@ L3 は本番サービス運用で実際に発生しうるインシデント（�
 1. `.kiro/steering/product.md` — プロダクトの概要・目的
 2. `.kiro/steering/structure.md` — 実際のディレクトリ構成
 3. `.kiro/steering/tech.md` — 使わないフレームワークを削除
+4. `CLAUDE.md` — `CLAUDE.md.example` をリネームしてPJ固有のルールを記載
+5. `.kiro/hooks/auto-test.kiro.hook` — `patterns` をPJのディレクトリ構成に合わせて変更
 
 ### Hooks の有効化
 
