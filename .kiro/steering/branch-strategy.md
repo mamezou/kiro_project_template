@@ -9,15 +9,18 @@ description: ブランチ戦略、PR運用、マージルール。git操作、PR
 ## ブランチルール
 
 - `main` ブランチへの直接 push は**常に禁止**（例外なし）
-- `dev` ブランチへの直接 push も**禁止**
+- 開発統合ブランチ（`dev` or `develop`）への直接 push も**禁止**
 - 作業は `feature/issue-<番号>-<説明>` ブランチで行う
-- `dev` から feature ブランチを作成し、`dev` へ PR を出す
-- `dev` → `main` の PR は CI 成功後に GitHub Actions が自動生成
+- 開発統合ブランチから feature ブランチを作成し、開発統合ブランチへ PR を出す
+- 開発統合ブランチ → `main` の PR は CI 成功後に GitHub Actions が自動生成
+
+> **Note**: 開発統合ブランチの名前は PJ に合わせて `dev` または `develop` を選択する。
+> どちらを使うかは PJ 初期に決め、`.kiro/steering/git-conventions.md` に明記すること。
 
 ## PR 運用
 
 ### 作成ルール
-- feature ブランチから `dev` にドラフト PR を作成
+- feature ブランチから開発統合ブランチにドラフト PR を作成
 - 概要・影響範囲・検証手順を記載
 - UI 変更はスクリーンショットを添付
 - `main` 向けに手動で PR を作成しない
@@ -53,8 +56,8 @@ gh pr view <番号> --json state
 
 - `--force` / `--force-with-lease` による force-push
 - CI を通さないデプロイ
-- ユーザー承認なしの `dev` → `main` PR マージ（本番デプロイ）
+- ユーザー承認なしの開発統合ブランチ → `main` PR マージ（本番デプロイ）
 
 ## 緊急対応（P0）
 
-P0 であっても `dev` 直 push は不可。必ず Draft PR を作成し、コメントで承認を得る。
+P0 であっても開発統合ブランチへの直 push は不可。必ず Draft PR を作成し、コメントで承認を得る。
