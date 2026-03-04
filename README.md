@@ -13,6 +13,7 @@ Steering / Skills / Hooks を組み合わせた `.kiro/` ディレクトリを�
 git clone https://github.com/mamezou/kiro_project_template.git /tmp/kiro-template
 cp -r /tmp/kiro-template/.kiro /path/to/your-project/.kiro
 cp -r /tmp/kiro-template/docs /path/to/your-project/docs
+cp -r /tmp/kiro-template/scripts /path/to/your-project/scripts
 cp /tmp/kiro-template/CLAUDE.md.example /path/to/your-project/CLAUDE.md
 
 # PJに合わせて書き換え
@@ -37,10 +38,13 @@ https://github.com/mamezou/kiro_project_template/tree/main/.kiro/skills/e2e-test
 ```
 .kiro/
 ├── agents/                      # サブエージェント（専門AI）
-│   ├── security-auditor.md         セキュリティ監査（read-only）
-│   ├── spec-checker.md             仕様準拠チェック（read-only）
+│   ├── security-auditor.md         セキュリティ監査（read-only, Kiro IDE用）
+│   ├── security-auditor.json       セキュリティ監査（kiro-cli用）
+│   ├── spec-checker.md             仕様準拠チェック（read-only, Kiro IDE用）
+│   ├── spec-checker.json           仕様準拠チェック（kiro-cli用）
 │   ├── doc-updater.md              ADR・設計書更新（docs/のみ書込可）
-│   └── unit-tester.md              テスト作成・実行
+│   ├── unit-tester.md              テスト作成・実行（Kiro IDE用）
+│   └── unit-tester.json            テストレビュー（kiro-cli用）
 │
 ├── steering/                    # エージェントへの常時コンテキスト
 │   ├── product.md                  プロダクト概要          ← PJごとに書き換え
@@ -74,6 +78,9 @@ docs/
 ├── decisions/                   # ADR（設計判断記録）
 │   └── 000-template.md             ADRテンプレート
 └── impl/.gitkeep                # 実装計画書
+
+scripts/
+└── kiro-review.sh               # kiro-cli レビュー実行スクリプト
 
 CLAUDE.md.example                # Claude Code 用ガードレールテンプレート
 ```
@@ -169,6 +176,71 @@ resources:
 
 プロンプト本文をここに書く。
 ```
+
+## kiro-cli レビュー統合
+
+kiro-cli を使って、ターミナルからレビューエージェントを実行できます。CI/CD パイプラインや Claude Code のスラッシュコマンドからも呼び出せます。
+
+### セットアップ
+
+```bash
+# 1. kiro-cli をインストール（未インストールの場合）
+npm install -g @anthropic-ai/kiro-cli
+
+# 2. ログイン
+kiro-cli login
+
+# 3. エージェント一覧を確認
+bash scripts/kiro-review.sh --list
+```
+
+### 実行方法
+
+```bash
+# 全レビューエージェントを並列実行
+bash scripts/kiro-review.sh
+
+# 特定のエージェントのみ実行
+bash scripts/kiro-review.sh security-auditor
+bash scripts/kiro-review.sh spec-checker
+bash scripts/kiro-review.sh unit-tester
+```
+
+レポートは `reviews/` ディレクトリにタイムスタンプ付きで保存されます（`.gitignore` 済み）。
+
+### Claude Code との統合
+
+`CLAUDE.md` に以下を追加すると、Claude Code からスラッシュコマンドでレビューを実行できます:
+
+```markdown
+## kiro-cli Review Integration
+
+### Slash Commands
+- `/review` — 全レビュー実行（セキュリティ・仕様準拠・テスト品質）
+- `/review-security` — セキュリティ監査のみ
+- `/review-spec` — 仕様準拠チェックのみ
+- `/review-tests` — テストレビューのみ
+
+### Manual Execution
+\`\`\`bash
+bash scripts/kiro-review.sh                    # 全レビュー
+bash scripts/kiro-review.sh security-auditor   # セキュリティのみ
+bash scripts/kiro-review.sh --list             # エージェント一覧
+\`\`\`
+```
+
+### 推奨ワークフロー
+
+1. 実装 → 2. `bash scripts/kiro-review.sh` → 3. 指摘修正 → 4. 再レビューで確認
+
+### エージェントの`.md` と `.json` の違い
+
+| 形式 | 用途 | 実行方法 |
+|------|------|---------|
+| `.md` | Kiro IDE のサブエージェント | Kiro IDE のチャットから呼び出し |
+| `.json` | kiro-cli のエージェント | `kiro-cli chat --agent <name>` |
+
+両方を配置しておくことで、IDE でもターミナルでもレビューを実行できます。
 
 ## カスタマイズ
 
